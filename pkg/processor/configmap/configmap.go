@@ -140,13 +140,25 @@ func parseProperties(properties string, path []string, values helmify.Values) (s
 	for _, line := range strings.Split(strings.TrimSuffix(properties, "\n"), "\n") {
 		prop := strings.Split(line, "=")
 		if len(prop) != 2 {
-			return "", errors.Errorf("wrong property format in %v: %s", path, line)
+			//return "", errors.Errorf("wrong property format in %v: %s", path, line)
+			logrus.Warn("wrong d property format in %s: %s, ignore..", path, line)
+			_, err := res.WriteString( line + "\n")
+			if err != nil {
+				return "", errors.Wrap(err, "unable to write to string builder")
+			}	
+			continue
 		}
 		propName, propVal := prop[0], prop[1]
 		propNamePath := strings.Split(propName, ".")
+		propVal = strings.ReplaceAll(propVal,"{{", "\"{{\"")
 		templatedVal, err := values.Add(propVal, append(path, propNamePath...)...)
 		if err != nil {
-			return "", err
+			logrus.Warn("Can't templatize %s:%s at line %s ignore..", path,propName, line)
+			_, err := res.WriteString( line + "\n")
+			if err != nil {
+				return "", errors.Wrap(err, "unable to write to string builder")
+			}	
+			continue			
 		}
 		_, err = res.WriteString(propName + "=" + templatedVal + "\n")
 		if err != nil {
